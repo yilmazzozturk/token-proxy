@@ -1,0 +1,30 @@
+name: Token Proxy Service
+on:
+  workflow_dispatch: # Manuel tetikleme için
+  repository_dispatch: # Dış istekler için
+    types: [get_token]
+
+jobs:
+  generate-token:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Get Idenfit Token
+      id: get_token
+      run: |
+        response=$(curl -s "https://integration.idenfit.com/login?username=${{ secrets.IDENFIT_USERNAME }}&password=${{ secrets.IDENFIT_PASSWORD }}")
+        token=$(echo $response | jq -r '.token')
+        echo "::add-mask::$token" # Güvenlik için token'ı loglarda gizle
+        echo "token=$token" >> $GITHUB_OUTPUT
+        
+    - name: Create Response File
+      run: |
+        echo '${{ steps.get_token.outputs.token }}' > token.txt
+        echo '{"token":"${{ steps.get_token.outputs.token }}","generated_at":"$(date -u)"}' > token.json
+        
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: token-response
+        path: |
+          token.txt
+          token.json
